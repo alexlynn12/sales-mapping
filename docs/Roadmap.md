@@ -19,6 +19,7 @@ Related: [[Sales Mapping]] · [[Changelog]] · [[Decisions]]
 - [x] Dataset separated from app; import from spreadsheet; validator
 - [x] **Territory splitting in-app** — divide a multi-state territory, allocate its revenue, place each half
 - [x] Assign an uncovered state to a territory
+- [x] Work restored automatically on the next visit
 
 ## Next
 

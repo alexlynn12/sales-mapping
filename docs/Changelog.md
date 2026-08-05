@@ -6,6 +6,16 @@ tags: [sales-mapping, log]
 
 Related: [[Sales Mapping]] · [[Roadmap]]
 
+## v0.3.0 — your work survives a refresh
+
+The dataset already persisted; the work on top of it did not. A refresh, a closed tab or a crash meant re-doing every move unless you had remembered to **Save…** first.
+
+- Area and district assignments, every name you type, the EVP toggle, splits and coverage changes are written back to this browser after each change
+- Restored automatically on the next visit, and tagged to the dataset it belongs to — a scenario built on one book is never applied to another
+- The dataset bar shows when it last saved, with **Discard** to throw it away and start from the dataset as it came
+- Still entirely local. It uses the same browser storage as your dataset and nothing is uploaded. It is per-browser, so **Save…** remains the way to move a scenario to another machine or send it to someone
+- If storage is unavailable — private mode, or a full disk — the bar says so rather than failing silently
+
 ## v0.2.0 — territory splitting and coverage
 
 A territory covering several states is one rep, so the whole patch moved as a unit — clicking North Dakota also moved Minnesota. Splitting was previously an upstream dataset edit; now it happens in the app.

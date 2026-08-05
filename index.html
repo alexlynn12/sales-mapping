@@ -16,6 +16,7 @@ to reassign it; shift-click several and turn them into a district. Save your wor
 <div class="databar">
   <span class="dstag">Dataset</span>
   <b id="dsname">loading…</b>
+  <span id="saved"></span>
   <span class="spacer"></span>
   <label class="file">Use my data…<input type="file" accept="application/json" onchange="loadDataset(event)"></label>
   <button class="mini" onclick="downloadDataset()">Download it</button>
@@ -59,6 +60,7 @@ to reassign it; shift-click several and turn them into a district. Save your wor
 <li><b>Districts</b> are yours to invent. Shift-click territories on the map, then "new district from these", or use the Districts tab. Deleting a district returns its territories to the area.</li>
 <li><b>Areas</b> can be added, renamed, recoloured and deleted. Click an area's name to rename it. Deleting one asks where its territories should go, so nothing is ever orphaned.</li>
 <li><b>Names.</b> Click any box in the org chart to set the person's name and title; the territory and planned-add tables have name fields too. Blank shows as <i>vacant</i>.</li>
+<li><b>Your work is kept between visits.</b> Where every territory sits, your districts, the names you type and any splits are written back to this browser after each change, so a refresh or a closed tab picks up where you left off. The bar above shows when it last saved; <b>Discard</b> throws it away and starts from the dataset as it came. It never leaves your machine, and it is per-browser — use <b>Save…</b> for a file you can move or share.</li>
 <li><b>Splitting.</b> A territory spanning several states is one person, so the whole patch moves together. If you need the states apart, click it and choose <b>⑂ split</b> — pick which states move, how much revenue goes with them, and where the new territory sits. That is one more head, and the dialog tells you so first.</li>
 <li><b>Grey states</b> are not covered by any territory. Click one and choose <b>give it coverage</b> to attach it to a rep's patch — that adds no revenue and no head, it just closes the gap.</li>
 <li><b>Checks run continuously</b> — contiguity, leaders' home markets, same-metro pairs, and adds separated from their territory.</li>

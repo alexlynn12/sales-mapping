@@ -14,6 +14,8 @@ Related: [[Sales Mapping]] · [[Balancing method]] · [[Data model]]
 
 **Data is separate from the app.** The published site carries synthetic numbers. Your dataset is loaded from disk and kept in that browser's `localStorage`. This is what makes it safe to host the app publicly and share it.
 
+**Work is kept in the browser, but a scenario is still a file.** Losing an afternoon's work to a stray refresh is indefensible, so the current state is written to `localStorage` after every change and restored on the next visit. That is a convenience, not a filing system: it is one slot, tied to one dataset, in one browser. **Save…** stays the way to keep a scenario, name it, compare it or send it to someone.
+
 **Everything is editable, nothing is inferred.** The tool never renames an area for you, never auto-assigns a leader, never silently rebalances. It tells you what's broken and leaves the decision where it belongs.
 
 ## Structure

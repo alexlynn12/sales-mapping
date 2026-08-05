@@ -70,6 +70,17 @@ Splitting is the one action that edits the dataset rather than just the scenario
 
 Because the dataset changes, a saved scenario that contains a split carries an `_ds` block with the affected arrays, so it can be reopened against the original dataset and still line up. Files without `_ds` are loaded as before, and are rejected if their territory count no longer matches the dataset.
 
+## What the browser keeps
+
+Two separate things, both local, both under keys the app owns:
+
+| Key | Holds |
+|---|---|
+| `salesmapping.dataset.v1` | the dataset you loaded with **Use my data…** |
+| `salesmapping.scenario.v1` | your work on top of it, tagged with the dataset's name and revenue total |
+
+The scenario is only restored when its tag matches the dataset currently loaded, so work built on one book never lands on another. **Discard** in the dataset bar removes it.
+
 ## Privacy
 
 The published app carries `data/demo-plan.json`, whose revenue is synthetic (`tools/make_demo.py`). Real datasets are never committed. **Use my data…** reads a file from disk into `localStorage` on that one browser; nothing leaves the machine.

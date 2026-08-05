@@ -139,3 +139,8 @@ details .body{margin-top:8px;font-size:12.5px;color:var(--ts)} details ul{paddin
 .pkseg{display:flex;gap:12px;font-size:12px;color:var(--mut,#6b6b66);white-space:nowrap}
 .pkseg label{display:inline-flex;align-items:center;gap:4px;margin:0;font-size:12px;cursor:pointer}
 .pkseg input{margin:0;width:auto}
+
+/* autosave indicator */
+.sv{font-size:12px;color:var(--mut,#6b6b66)}
+.sv.bad{color:var(--badfg,#8a1c11)}
+#saved{display:inline-flex;align-items:center;gap:8px;margin-left:10px}

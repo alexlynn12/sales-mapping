@@ -35,6 +35,42 @@ function dsRestore(o){ DS_KEYS.forEach(k=>{ if(o[k]!==undefined) D[k]=o[k]; });
 function push(structural){ history.push({s:JSON.stringify(S),d:structural?JSON.stringify(dsSlice()):null});
   if(history.length>250) history.shift(); }
 
+/* ---------- keeping your work between visits ----------
+   The dataset already survives a refresh (boot.js keeps it in localStorage).
+   The *work* — where territories sit, districts, names, splits — did not, so a
+   reload threw it away. It is now written back after every change, to the same
+   browser-only storage. Nothing leaves the machine. */
+const SC_KEY='salesmapping.scenario.v1';
+const dsTag=()=>((D.meta&&D.meta.name)||'dataset')+'|'+D.total;
+let saveT=null, savedAt=null, saveOff=false;
+function autosave(){ if(saveOff) return; if(saveT) clearTimeout(saveT);
+  saveT=setTimeout(()=>{ try{
+      localStorage.setItem(SC_KEY,JSON.stringify({tag:dsTag(),at:Date.now(),s:S,ds:splitsMade?dsSlice():null}));
+      savedAt=Date.now(); stampSaved();
+    }catch(e){ saveOff=true; stampSaved('could not save — this browser is out of room or in private mode'); } },500); }
+function restoreScenario(){
+  try{
+    const raw=localStorage.getItem(SC_KEY); if(!raw) return false;
+    const o=JSON.parse(raw);
+    if(!o||o.tag!==dsTag()||!o.s||!o.s.areas||!o.s.terr) return false;
+    if(o.ds){ dsRestore(o.ds); splitsMade=true; }
+    if(o.s.terr.length!==T.length||o.s.add.length!==ADD.length) return false;
+    S=o.s; savedAt=o.at||null; return true;
+  }catch(e){ return false; }}
+function discardSaved(){
+  if(!confirm('Throw away the work saved in this browser and start from the dataset as it came? This cannot be undone.')) return;
+  try{ localStorage.removeItem(SC_KEY); }catch(e){}
+  savedAt=null; history=[]; splitsMade=false; location.reload();}
+const ago=t=>{const s=Math.round((Date.now()-t)/1000);
+  if(s<45) return 'just now'; if(s<5400) return Math.round(s/60)+' min ago';
+  const h=Math.round(s/3600); return h<36?h+' hr ago':Math.round(h/24)+' days ago';};
+function stampSaved(err){
+  const el=document.getElementById('saved'); if(!el) return;
+  el.innerHTML = err ? `<span class="sv bad">${esc(err)}</span>`
+    : savedAt ? `<span class="sv">saved in this browser · ${ago(savedAt)}</span>
+                 <button class="mini" onclick="discardSaved()" title="throw it away and start from the dataset as it came">Discard</button>`
+              : '';}
+
 /* ---------- metrics ---------- */
 function stats(){
   const m={}; S.areas.forEach(a=>m[a.id]={rev:0,heads:0,terr:0,adds:0,land:0,dists:0,direct:0});
@@ -493,6 +529,7 @@ function render(){
   document.getElementById('undoBtn').disabled=!history.length;
   document.getElementById('menuLayer').innerHTML=menuHTML();
   document.getElementById('modalLayer').innerHTML=modalHTML();
+  stampSaved(); autosave();
   document.getElementById('selbar').innerHTML = sel.length
     ? `<b>${sel.length} selected</b> <span class="muted">${sel.slice(0,4).map(i=>esc(T[i].name)).join(', ')}${sel.length>4?'…':''}</span>
        <button class="mini" onclick="newDistrictFrom([${sel.join(',')}])">✚ new district from these</button>
@@ -510,6 +547,7 @@ function undo(){ if(!history.length) return; const h=history.pop();
   if(h.d) dsRestore(JSON.parse(h.d));
   S=JSON.parse(h.s); menu=null;modal=null;sel=[]; render(); }
 function resetAll(){ push(); initState(); menu=null;modal=null;sel=[]; render(); }
+window.discardSaved=discardSaved;
 function setTab(k){tab=k;renderTables();}
 function setView(v){view=v;render(); if(v==='map') setTimeout(()=>Plotly.Plots.resize('map'),40);}
 function saveJSON(){
@@ -560,9 +598,9 @@ function boot(ds){
   history=[]; splitsMade=false; window.__ds=D;
   document.getElementById('dsname').textContent=(D.meta&&D.meta.name)||'dataset';
   document.getElementById('app').classList.remove('hide');
-  if(wired) { initState(); render(); return; }
+  if(wired) { initState(); restoreScenario(); render(); return; }
   wired=true;
-  initState(); render();
+  initState(); restoreScenario(); render();
   const gd=document.getElementById('map');
   gd.on('plotly_click',ev=>{const p=ev.points[0]; if(!p) return; const de=ev.event||{},[x,y]=at(de);
     if(p.data.name==='territories'){const i=p.pointIndex;
