@@ -1,0 +1,15 @@
+# Real datasets never belong in the repo
+data/*-actual.json
+data/private/
+*-plan.json
+!data/demo-plan.json
+
+# Scratch
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+*.log
+
+# Real leader and expansion tables stay out of the repo
+tools/reference/*_private.py

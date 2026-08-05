@@ -1,0 +1,76 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sales Mapping</title>
+<meta name="description" content="Plan sales areas, districts and the reporting org on one map. Runs entirely in your browser.">
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231F3864'/><circle cx='11' cy='12' r='4' fill='%2312c6a5'/><circle cx='21' cy='20' r='5' fill='%23e19b11'/></svg>">
+</head><body><div class="wrap">
+
+<h1>Sales Mapping</h1>
+<p class="sub">Build the structure however you like — add or remove areas, group territories into districts with their own leaders,
+rename anyone, and switch to the org-chart view to see the whole reporting line. Click a state, territory or planned add on the map
+to reassign it; shift-click several and turn them into a district. Save your work to a file and load it back later.</p>
+
+<div id="bootmsg" class="bootmsg hide"></div>
+
+<div class="databar">
+  <span class="dstag">Dataset</span>
+  <b id="dsname">loading…</b>
+  <span class="spacer"></span>
+  <label class="file">Use my data…<input type="file" accept="application/json" onchange="loadDataset(event)"></label>
+  <button class="mini" onclick="downloadDataset()">Download it</button>
+  <button class="mini" onclick="useDemoData()">Back to demo</button>
+</div>
+
+<div id="app" class="hide">
+<div class="bar">
+  <div class="vw"><button id="vw_map" aria-pressed="true" onclick="setView('map')">Map &amp; balance</button>
+  <button id="vw_org" aria-pressed="false" onclick="setView('org')">Org chart</button></div>
+  <button id="undoBtn" onclick="undo()">Undo</button>
+  <button onclick="resetAll()">Reset</button>
+  <button onclick="saveJSON()">Save…</button>
+  <label class="file">Load…<input type="file" accept="application/json" onchange="loadJSON(event)"></label>
+  <button onclick="exportCSV()">Export org CSV</button>
+  <button onclick="window.print()">Print / PDF</button>
+  <span class="spacer"></span><button id="thm" onclick="toggleTheme()">Dark mode</button>
+</div>
+<div id="summary"></div><div id="issues"></div>
+<div id="mapView">
+  <div id="selbar"></div>
+  <div class="grid">
+    <div id="mapWrap"><div id="map"></div><div id="menuLayer"></div></div>
+    <div class="cards" id="cards"></div>
+  </div>
+  <details open><summary>Lists — everything here is editable</summary>
+    <div class="tabs">
+      <button id="tab_terr" aria-pressed="true" onclick="setTab('terr')">Territories</button>
+      <button id="tab_dist" aria-pressed="false" onclick="setTab('dist')">Districts</button>
+      <button id="tab_state" aria-pressed="false" onclick="setTab('state')">States</button>
+      <button id="tab_add" aria-pressed="false" onclick="setTab('add')">Planned adds</button>
+    </div>
+    <div class="tblwrap" id="tabbody"></div></details>
+</div>
+<div id="orgView" class="hide"><div id="orgmeta"></div><div id="org"></div></div>
+</div>
+
+<details><summary>How it works</summary><div class="body"><ul>
+<li><b>Your data stays yours.</b> There is no server and no account. The published app carries synthetic demo numbers; "Use my data…" reads a JSON file straight off your machine and keeps it in this browser only.</li>
+<li><b>Three levels.</b> Area leader → optional district leader → territory manager. A territory not in a district reports straight to the area leader, so "direct reports" on each card is districts + direct territories.</li>
+<li><b>Districts</b> are yours to invent. Shift-click territories on the map, then "new district from these", or use the Districts tab. Deleting a district returns its territories to the area.</li>
+<li><b>Areas</b> can be added, renamed, recoloured and deleted. Click an area's name to rename it. Deleting one asks where its territories should go, so nothing is ever orphaned.</li>
+<li><b>Names.</b> Click any box in the org chart to set the person's name and title; the territory and planned-add tables have name fields too. Blank shows as <i>vacant</i>.</li>
+<li><b>Checks run continuously</b> — contiguity, leaders' home markets, same-metro pairs, and adds separated from their territory.</li>
+<li><b>Colours.</b> The first seven are colour-blind validated against each other; past that, identity relies on the labels, and you'll see a note.</li>
+<li><b>Save…</b> writes a JSON file of the whole structure; <b>Load…</b> brings it back. <b>Export org CSV</b> gives one row per person with who they report to. <b>Print / PDF</b> prints the org chart alone.</li>
+</ul></div></details>
+
+<footer class="foot">Sales Mapping · runs entirely in your browser ·
+<a href="https://github.com/alexlynn12/sales-mapping">source</a></footer>
+
+<div id="modalLayer"></div>
+</div>
+<script src="vendor/plotly.min.js"></script>
+<script src="assets/state-names.js"></script>
+<script src="assets/app.js"></script>
+<script src="assets/boot.js"></script>
+</body></html>
