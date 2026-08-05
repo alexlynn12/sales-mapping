@@ -13,6 +13,7 @@ Runs entirely in your browser. No server, no account, nothing uploaded.
 - **Cut areas on a map.** Click a state, a territory or a planned add to move it. Every metric updates as you go.
 - **Group into districts.** Shift-click several territories, group them under a district leader, and watch span of control drop.
 - **Build the org.** Switch to the org-chart view, name everyone, toggle an EVP layer, print it or export it as CSV.
+- **Split a territory that spans several states.** One rep covering three states moves as one unit, which is usually right and occasionally not. Split it, choose which states go where, allocate the revenue, and the two halves become two seats.
 - **Get told when a cut is broken.** Contiguity, leaders' home markets, same-metro pairs and detached headcount are checked continuously.
 
 ## Your data

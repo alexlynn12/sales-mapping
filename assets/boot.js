@@ -66,7 +66,8 @@ window.useDemoData = async function () {
 };
 
 window.downloadDataset = function () {
-  const ds = stored();
+  /* the live dataset, so a territory you split in the app comes with it */
+  const ds = window.__ds || stored();
   if (!ds) { alert('The demo dataset is already in the repo at data/demo-plan.json.'); return; }
   const b = new Blob([JSON.stringify(ds, null, 1)], { type: 'application/json' });
   const u = URL.createObjectURL(b);

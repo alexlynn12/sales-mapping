@@ -17,13 +17,13 @@ Related: [[Sales Mapping]] · [[Changelog]] · [[Decisions]]
 - [x] Save/Load scenario JSON · Export org CSV · Print to PDF
 - [x] Light and dark palettes, colour-blind validated to seven areas
 - [x] Dataset separated from app; import from spreadsheet; validator
+- [x] **Territory splitting in-app** — divide a multi-state territory, allocate its revenue, place each half
 
 ## Next
 
 - [ ] **Scenario compare** — open two saved files side by side, diff the moves and the metrics
 - [ ] **Quota view** — per-area and per-rep targets derived from the cut, exportable
 - [ ] **Undo history panel** — see and jump back to any prior state, not just one step at a time
-- [ ] **Territory splitting in-app** — currently an upstream dataset edit
 - [ ] **Drive-time colouring** — shade by distance from the leader's base rather than raw land area
 
 ## Later

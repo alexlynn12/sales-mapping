@@ -27,23 +27,23 @@ Related: [[Sales Mapping]] · [[Balancing method]] · [[Territory adjacency]]
 
 ## A territory
 
-Figures below are illustrative — they match the shape of `data/demo-plan.json`, not any real book.
-
 ```json
 {
-  "name": "Example Metro",
+  "name": "Dallas Ft Worth",
   "lat": 32.78, "lon": -96.80,
-  "rev": 1315000,
+  "rev": 3251599,
   "land": 65308,
   "states": ["TX"],
   "old": "Central",
   "area": 3,
   "heads": 2,
-  "adds": [{ "market": "Example Metro North", "role": "TM or Agent", "timing": "future",
+  "adds": [{ "market": "Fort Worth", "role": "TM or Agent", "timing": "Q1 2027",
              "lat": 32.76, "lon": -97.33 }],
   "nAdds": 1
 }
 ```
+
+A territory created by splitting another also carries `splitFrom`, the name of the one it came out of — the Territories tab shows it as a **split** tag.
 
 `rev` is the trailing-year figure the balance is measured against. `land` is the territory's share of each state it covers — a state split between three territories contributes a third of its square mileage to each. `old` is the pre-cut area, used only to mark rows as *moved*.
 
@@ -63,6 +63,12 @@ python3 tools/validate_dataset.py out.json
 ```
 
 The importer joins the spreadsheet to the reference tables in `tools/reference/` — coordinates, states covered, land area, adjacency, planned adds. A territory the tables don't know about stops the build rather than being dropped.
+
+## Splitting a territory
+
+Splitting is the one action that edits the dataset rather than just the scenario. It appends a territory, moves the chosen states' entries in `stateTerr` to the new index, adds adjacency edges both ways, extends `baseline`, and raises `totalHeads` by one. `total` does not move — revenue is reallocated between the two halves, not created.
+
+Because the dataset changes, a saved scenario that contains a split carries an `_ds` block with the affected arrays, so it can be reopened against the original dataset and still line up. Files without `_ds` are loaded as before, and are rejected if their territory count no longer matches the dataset.
 
 ## Privacy
 

@@ -6,6 +6,18 @@ tags: [sales-mapping, log]
 
 Related: [[Sales Mapping]] · [[Roadmap]]
 
+## v0.2.0 — territory splitting
+
+A territory covering several states is one rep, so the whole patch moved as a unit — clicking North Dakota also moved Minnesota. Splitting was previously an upstream dataset edit; now it happens in the app.
+
+- Split a multi-state territory in two: choose which states move, allocate the revenue, name each half and pick the area the new one lands in
+- Offered from the map picker (including straight off a state, where the surprise usually happens), and from a **⑂ split** button on multi-state rows in the Territories tab
+- Adds attached to the territory can move across with it
+- Revenue is reallocated, never created — the dataset total is unchanged. Headcount goes up by one, because two territories are two people, and the dialog says so before you commit
+- Adjacency is maintained: the halves border each other and both inherit the original's neighbours, so the contiguity check keeps working
+- Undo reverses a split, including the dataset changes it made
+- Scenario files carry any splits, so **Save…** / **Load…** round-trips them; **Download it** exports the dataset with the split applied
+
 ## v0.1.0 — first repo build
 
 Extracted from a single 5 MB self-contained HTML file into a real application.

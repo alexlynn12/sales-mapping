@@ -1,7 +1,7 @@
 /* Sales Mapping — territory / area / org structure editor.
    Data arrives at runtime via boot(dataset); nothing here is hard-coded to one company. */
-let D,T,ADD,K0,SN,PAL,VALID,TOTREV,TOTH,MX;
-let S, history=[], menu=null, modal=null, flash=-1, tab='terr', view='map', sel=[];
+let D,T,ADD,K0,SN,SC,PAL,VALID,TOTREV,TOTH,MX;
+let S, history=[], menu=null, modal=null, flash=-1, tab='terr', view='map', sel=[], splitsMade=false;
 const dark=()=>document.documentElement.getAttribute('data-theme')==='dark'
   ||(!document.documentElement.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);
 const fmt=n=>'$'+Math.round(n).toLocaleString('en-US');
@@ -24,7 +24,16 @@ const distById=id=>S.districts.find(d=>d.id===id);
 const colOf=id=>{const a=areaById(id); return a?(dark()?PAL.dark[a.ci%12]:PAL.light[a.ci%12]):'#888';};
 const areaOfAdd=j=>S.add[j].a!=null?S.add[j].a:S.terr[ADD[j].parent].a;
 const distOfAdd=j=>S.add[j].a!=null?null:S.terr[ADD[j].parent].d;
-function push(){ history.push(JSON.stringify(S)); if(history.length>250) history.shift(); }
+/* History holds the editable state S. A split also changes the dataset itself
+   (a new territory appears), so those steps additionally snapshot the dataset
+   slices a split can touch — otherwise undo would leave S and D disagreeing
+   about how many territories exist. */
+const DS_KEYS=['territories','stateTerr','adj','baseline','totalHeads'];
+function dsSlice(){const o={}; DS_KEYS.forEach(k=>o[k]=D[k]); return JSON.parse(JSON.stringify(o));}
+function dsRestore(o){ DS_KEYS.forEach(k=>{ if(o[k]!==undefined) D[k]=o[k]; });
+  T=D.territories; TOTH=D.totalHeads; MX=Math.max(...T.map(t=>t.rev)); window.__ds=D; }
+function push(structural){ history.push({s:JSON.stringify(S),d:structural?JSON.stringify(dsSlice()):null});
+  if(history.length>250) history.shift(); }
 
 /* ---------- metrics ---------- */
 function stats(){
@@ -142,10 +151,16 @@ function menuHTML(){
           <span class="mname">${esc(d.name)}</span><span class="mdet">${esc(a?a.name:'')}</span></div>`;}).join('');
     }
     h+=`<div class="mrow back" onclick="newDistrictFrom([${sc.ids.join(',')}])">✚ new district from ${sc.ids.length>1?sc.ids.length+' territories':'this territory'}</div>`;
+    if(sc.kind==='terr'&&sc.ids.length===1&&canSplit(sc.ids[0]))
+      h+=`<div class="mrow back" onclick="askSplit(${sc.ids[0]})">⑂ split — it covers ${T[sc.ids[0]].states.length} states</div>`;
   }
   if(sc.kind==='add'&&S.add[sc.ids[0]].a!=null)
     h+=`<div class="mrow back" onclick="relink()">↩ follow its territory</div>`;
   if(sc.kind==='state'){const list=D.stateTerr[sc.st];
+    /* the common surprise: one rep covers several states, so the whole patch moves */
+    list.filter(canSplit).forEach(i=>{
+      const others=T[i].states.filter(s=>s!==sc.st);
+      h+=`<div class="mrow back" onclick="askSplit(${i})">⑂ split ${esc(T[i].name)} — one rep also covers ${others.map(s=>esc(SN[s]||s)).join(', ')}</div>`;});
     h+=`<div class="mrow back" onclick="menu.expand=!menu.expand;render()">${menu.expand?'▾':'▸'} or move one of the ${list.length} territories</div>`;
     if(menu.expand) h+=list.map(i=>`<div class="mrow sub" onclick="pickOne(${i})">
       <span class="sw" style="background:${colOf(S.terr[i].a)}"></span><span class="mname">${esc(T[i].name)}</span>
@@ -163,17 +178,27 @@ function modalHTML(){
   const f=modal.fields.map(f=>{
     if(f.type==='select') return `<label>${f.label}<select id="mf_${f.key}">${f.options.map(o=>`<option value="${o.v}" ${o.v==f.value?'selected':''}>${esc(o.t)}</option>`).join('')}</select></label>`;
     if(f.type==='color') return `<label>${f.label}<div class="swatches">${PAL.light.map((c,i)=>`<span class="swpick${i==f.value?' on':''}" style="background:${dark()?PAL.dark[i]:c}" onclick="modal.fields.find(x=>x.key==='${f.key}').value=${i};render()">${i>=VALID?'!':''}</span>`).join('')}</div></label>`;
+    if(f.type==='pick') return `<label>${f.label}<div class="picks">${f.options.map(o=>
+        `<div class="pickrow"><span class="pkname">${esc(o.t)}</span>
+          <span class="pkseg"><label><input type="radio" name="mf_${f.key}_${o.v}" value="a" ${f.value.indexOf(o.v)<0?'checked':''}> ${esc(f.aLab)}</label>
+          <label><input type="radio" name="mf_${f.key}_${o.v}" value="b" ${f.value.indexOf(o.v)>=0?'checked':''}> ${esc(f.bLab)}</label></span></div>`).join('')}</div></label>`;
     return `<label>${f.label}<input id="mf_${f.key}" value="${esc(f.value)}" placeholder="${esc(f.ph||'')}"></label>`;}).join('');
   return `<div class="modalbg" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">
-    <h3>${esc(modal.title)}</h3>${modal.note?`<p class="mnote">${modal.note}</p>`:''}${f}
+    <h3>${esc(modal.title)}</h3>${modal.note?`<p class="mnote">${modal.note}</p>`:''}
+    ${modal.err?`<p class="merr">${esc(modal.err)}</p>`:''}${f}
     <div class="mbtns">${modal.danger?`<button class="danger" onclick="modalDanger()">${esc(modal.danger)}</button>`:''}
       <span class="spacer"></span><button onclick="closeModal()">Cancel</button>
       <button class="primary" onclick="modalOK()">${esc(modal.ok||'Save')}</button></div></div></div>`;
 }
 function readModal(){const o={};modal.fields.forEach(f=>{
   if(f.type==='color') o[f.key]=f.value;
+  else if(f.type==='pick') o[f.key]=f.options.filter(x=>{
+    const el=document.querySelector(`input[name="mf_${f.key}_${x.v}"]:checked`);
+    return el?el.value==='b':f.value.indexOf(x.v)>=0;}).map(x=>x.v);
   else {const el=document.getElementById('mf_'+f.key); o[f.key]=el?el.value:f.value;}});return o;}
-function modalOK(){const o=readModal(),fn=modal.onOK;modal=null;push();fn(o);render();}
+function modalOK(){const o=readModal(),fn=modal.onOK,st=!!modal.structural;
+  if(modal.validate){const err=modal.validate(o); if(err){modal.err=err;render();return;}}
+  modal=null;push(st);fn(o);render();}
 function modalDanger(){const fn=modal.onDanger;modal=null;push();fn();render();}
 
 function editArea(id){const a=areaById(id);
@@ -228,6 +253,66 @@ function editDistrict(id){const d=distById(id);
     onOK:o=>{d.name=o.name||d.name;d.title=o.title;d.leader=o.leader;
       if(+o.area!==d.areaId){d.areaId=+o.area; S.terr.forEach(t=>{if(t.d===id) t.a=+o.area;});}},
     onDanger:()=>{S.terr.forEach(t=>{if(t.d===id) t.d=null;}); S.districts=S.districts.filter(x=>x.id!==id);}};render();}
+/* ---------- splitting a territory ---------- */
+const canSplit=i=>T[i]&&(T[i].states||[]).length>1;
+const money=s=>{const n=parseFloat(String(s).replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:NaN;};
+function askSplit(i){
+  menu=null;
+  const t=T[i], sts=t.states.slice(), half=sts.slice(Math.ceil(sts.length/2));
+  const mine=ADD.map((a,j)=>a.parent===i?j:-1).filter(j=>j>=0);
+  const fields=[
+    {key:'aName',label:'Keeps the name',value:t.name},
+    {key:'bName',label:'New territory name',value:SN[half[0]]||'New territory'},
+    {key:'states',label:'Which states move to the new territory',type:'pick',
+     value:half,aLab:'stays',bLab:'moves',options:sts.map(s=>({v:s,t:SN[s]||s}))},
+    {key:'bRev',label:`Revenue moving with it (of ${fmt(t.rev)})`,
+     value:String(Math.round(t.rev*half.length/sts.length)),ph:'0'},
+    {key:'bArea',label:'New territory sits in',type:'select',value:S.terr[i].a,
+     options:S.areas.map(a=>({v:a.id,t:a.name}))}];
+  if(mine.length) fields.push({key:'adds',label:'Planned adds — move any across?',type:'pick',
+    value:[],aLab:'stays',bLab:'moves',options:mine.map(j=>({v:String(j),t:ADD[j].market}))});
+  modal={title:'Split '+t.name,ok:'Split',structural:true,
+    note:`One territory becomes two, so this is <b>+1 head</b> — from ${TOTH} to ${TOTH+1}. Revenue is reallocated, not created:
+          the total stays ${fmtM(TOTREV)}. Undo reverses it, and “Save…” keeps the split in your scenario file.`,
+    fields,
+    validate:o=>{
+      if(!o.states.length) return 'Move at least one state to the new territory.';
+      if(o.states.length===T[i].states.length) return 'At least one state has to stay with the original.';
+      const r=money(o.bRev);
+      if(isNaN(r)||r<0) return 'Revenue has to be a number, zero or more.';
+      if(r>T[i].rev) return `That is more than the territory has (${fmt(T[i].rev)}).`;
+      if(!String(o.bName).trim()) return 'The new territory needs a name.';
+      return null;},
+    onOK:o=>doSplit(i,{aName:String(o.aName).trim()||T[i].name,bName:String(o.bName).trim(),
+      bStates:o.states,bRev:money(o.bRev),bArea:+o.bArea,adds:(o.adds||[]).map(Number)})};
+  render();}
+function doSplit(i,spec){
+  const t=T[i], n=T.length;
+  const aStates=t.states.filter(s=>spec.bStates.indexOf(s)<0);
+  const share=spec.bStates.length/Math.max(1,t.states.length);
+  const bLand=Math.round((t.land||0)*share);
+  const c=spec.bStates.map(s=>SC[s]).filter(Boolean);
+  const lat=c.length?c.reduce((s,p)=>s+p[0],0)/c.length:t.lat;
+  const lon=c.length?c.reduce((s,p)=>s+p[1],0)/c.length:t.lon;
+  T.push({name:spec.bName,lat,lon,rev:spec.bRev,land:bLand,states:spec.bStates,
+          old:t.old,area:t.area,heads:1,adds:[],nAdds:0,splitFrom:t.name});
+  T[i]={...t,name:spec.aName,states:aStates,rev:t.rev-spec.bRev,land:(t.land||0)-bLand};
+  /* a state the new territory now covers points at it instead */
+  spec.bStates.forEach(s=>{const list=D.stateTerr[s]; if(!list) return;
+    const k=list.indexOf(i); if(k>=0) list[k]=n; else list.push(n);});
+  /* the two halves border each other, and the new one inherits the old one's neighbours */
+  const nb=(D.adj[i]||[]).slice();
+  D.adj[n]=nb.concat([i]);
+  nb.forEach(x=>{ if(D.adj[x]&&D.adj[x].indexOf(n)<0) D.adj[x].push(n); });
+  if(D.adj[i].indexOf(n)<0) D.adj[i].push(n);
+  D.baseline.push(spec.bArea);
+  D.totalHeads+=1; TOTH=D.totalHeads;
+  spec.adds.forEach(j=>{ADD[j].parent=n;});
+  S.terr.push({a:spec.bArea,d:null,name:''});
+  MX=Math.max(...T.map(x=>x.rev));
+  splitsMade=true; window.__ds=D;
+  flash=spec.bArea; setTimeout(()=>{flash=-1;renderPanel();},900);}
+
 function editPerson(kind,id){
   let o,title;
   if(kind==='cro'){o=S.cro;title='Chief Revenue Officer';}
@@ -266,12 +351,13 @@ function renderTables(){
   const aOpts=(cur,fn)=>`<select onchange="${fn}">${S.areas.map(a=>`<option value="a${a.id}" ${cur==='a'+a.id?'selected':''}>${esc(a.name)}</option>`).join('')}
     ${S.districts.map(d=>`<option value="d${d.id}" ${cur==='d'+d.id?'selected':''}>&nbsp;&nbsp;↳ ${esc(d.name)}</option>`).join('')}</select>`;
   if(tab==='terr'){
-    w.innerHTML=`<table><thead><tr><th>Territory</th><th>Area / district</th><th>Rep name</th><th style="text-align:right">2026 revenue</th><th>States</th></tr></thead><tbody>`
+    w.innerHTML=`<table><thead><tr><th>Territory</th><th>Area / district</th><th>Rep name</th><th style="text-align:right">2026 revenue</th><th>States</th><th></th></tr></thead><tbody>`
       +T.map((t,i)=>{const x=S.terr[i],cur=x.d!=null?'d'+x.d:'a'+x.a;
-        return `<tr class="${x.a!==D.baseline[i]||x.d!=null?'moved':''}"><td>${esc(t.name)}</td>
+        return `<tr class="${x.a!==D.baseline[i]||x.d!=null?'moved':''}"><td>${esc(t.name)}${t.splitFrom?` <span class="tagp" title="created by splitting ${esc(t.splitFrom)}">split</span>`:''}</td>
           <td>${aOpts(cur,`setPlace(${i},this.value)`)}</td>
           <td><input class="nm" value="${esc(x.name)}" placeholder="—" oninput="S.terr[${i}].name=this.value"></td>
-          <td class="num">${fmt(t.rev)}</td><td class="muted">${t.states.join(', ')}</td></tr>`;}).join('')+`</tbody></table>`;
+          <td class="num">${fmt(t.rev)}</td><td class="muted">${t.states.join(', ')}</td>
+          <td>${canSplit(i)?`<button class="mini" onclick="askSplit(${i})" title="one rep covers ${t.states.length} states — split into two territories">⑂ split</button>`:''}</td></tr>`;}).join('')+`</tbody></table>`;
   } else if(tab==='state'){
     const sts=Object.keys(D.stateTerr).sort((a,b)=>(SN[a]||a).localeCompare(SN[b]||b));
     w.innerHTML=`<table><thead><tr><th>State</th><th>Move whole state to</th><th style="text-align:right">Terr</th><th>Territories in it</th></tr></thead><tbody>`
@@ -380,15 +466,30 @@ function setStatePlace(st,v){ if(!v) return; push();
   D.stateTerr[st].forEach(i=>{ if(v[0]==='d'){const d=distById(+v.slice(1)); S.terr[i].d=d.id; S.terr[i].a=d.areaId;}
     else {S.terr[i].a=+v.slice(1); S.terr[i].d=null;} }); render();}
 function setAddArea(j,v){push(); S.add[j].a = v===''?null:+v; render();}
-function undo(){ if(!history.length) return; S=JSON.parse(history.pop()); menu=null;modal=null;sel=[]; render(); }
+function undo(){ if(!history.length) return; const h=history.pop();
+  if(h.d) dsRestore(JSON.parse(h.d));
+  S=JSON.parse(h.s); menu=null;modal=null;sel=[]; render(); }
 function resetAll(){ push(); initState(); menu=null;modal=null;sel=[]; render(); }
 function setTab(k){tab=k;renderTables();}
 function setView(v){view=v;render(); if(v==='map') setTimeout(()=>Plotly.Plots.resize('map'),40);}
-function saveJSON(){const b=new Blob([JSON.stringify(S,null,1)],{type:'application/json'}),u=URL.createObjectURL(b);
+function saveJSON(){
+  /* a scenario with splits in it carries the territories it invented, so it can
+     be reopened against the original dataset and still line up */
+  const out=splitsMade?{...S,_ds:dsSlice()}:S;
+  const b=new Blob([JSON.stringify(out,null,1)],{type:'application/json'}),u=URL.createObjectURL(b);
   const a=document.createElement('a');a.href=u;a.download='2027-area-structure.json';a.click();URL.revokeObjectURL(u);}
 function loadJSON(ev){const f=ev.target.files[0]; if(!f) return; const r=new FileReader();
-  r.onload=()=>{try{const o=JSON.parse(r.result); if(!o.areas||!o.terr) throw 0; push(); S=o; menu=null;modal=null;sel=[]; render();}
-    catch(e){alert('That file does not look like a saved structure.');}}; r.readAsText(f); ev.target.value='';}
+  r.onload=()=>{try{
+      const o=JSON.parse(r.result); if(!o.areas||!o.terr) throw new Error('not a saved structure');
+      const ds=o._ds; delete o._ds;
+      if(ds&&ds.territories&&ds.territories.length<o.terr.length) throw new Error('the file disagrees with itself');
+      if(!ds&&o.terr.length!==T.length)
+        throw new Error(`it describes ${o.terr.length} territories but this dataset has ${T.length}`);
+      push(!!ds);
+      if(ds){dsRestore(ds); splitsMade=true;}
+      S=o; menu=null;modal=null;sel=[]; render();}
+    catch(e){alert('That file does not look like a saved structure.\n\n'+e.message);}};
+  r.readAsText(f); ev.target.value='';}
 function exportCSV(){
   const m=stats(), dm=distStats();
   let csv='Level,Name,Person,Title,Based in,Reports to,Area,District,2026 Revenue,Heads\n';
@@ -413,9 +514,10 @@ function at(ev){const h=document.getElementById('mapWrap').getBoundingClientRect
   let y=(ev&&ev.clientY!==undefined?ev.clientY-h.top:60);
   return [Math.max(6,Math.min(x,h.width-318)),Math.max(6,Math.min(y,Math.max(6,h.height-160)))];}
 function boot(ds){
-  D=ds; T=D.territories; ADD=D.adds; K0=D.k; SN=window.STATE_NAMES;
+  D=ds; T=D.territories; ADD=D.adds; K0=D.k; SN=window.STATE_NAMES; SC=window.STATE_CENTROIDS||{};
   PAL=D.palette; VALID=PAL.validated; TOTREV=D.total; TOTH=D.totalHeads;
   MX=Math.max(...T.map(t=>t.rev));
+  history=[]; splitsMade=false; window.__ds=D;
   document.getElementById('dsname').textContent=(D.meta&&D.meta.name)||'dataset';
   document.getElementById('app').classList.remove('hide');
   if(wired) { initState(); render(); return; }
@@ -441,3 +543,4 @@ function boot(ds){
 }
 let wired=false;
 window.boot=boot;
+window.askSplit=askSplit;
