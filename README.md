@@ -30,6 +30,14 @@ python3 tools/validate_dataset.py my-plan.json
 
 The format is documented in [docs/Data model.md](docs/Data%20model.md). Keep real datasets out of the repo — `.gitignore` already excludes `data/*-actual.json` and `data/private/`.
 
+## Publishing
+
+```bash
+./publish.sh
+```
+
+Creates the repo, pushes, and switches on GitHub Pages. Needs the [GitHub CLI](https://cli.github.com) and `gh auth login`. Safe to re-run — it reuses an existing repo and refuses to publish if a non-demo dataset is sitting in `data/`.
+
 ## Running it locally
 
 The app fetches its dataset, so opening `index.html` straight off disk will be blocked by the browser. Serve the folder:
