@@ -6,7 +6,7 @@ tags: [sales-mapping, log]
 
 Related: [[Sales Mapping]] · [[Roadmap]]
 
-## v0.2.0 — territory splitting
+## v0.2.0 — territory splitting and coverage
 
 A territory covering several states is one rep, so the whole patch moved as a unit — clicking North Dakota also moved Minnesota. Splitting was previously an upstream dataset edit; now it happens in the app.
 
@@ -17,6 +17,17 @@ A territory covering several states is one rep, so the whole patch moved as a un
 - Adjacency is maintained: the halves border each other and both inherit the original's neighbours, so the contiguity check keeps working
 - Undo reverses a split, including the dataset changes it made
 - Scenario files carry any splits, so **Save…** / **Load…** round-trips them; **Download it** exports the dataset with the split applied
+- `land` now moves with the states themselves rather than being prorated by state count, using real state areas
+
+### Uncovered states
+
+A state no territory covers was drawn grey and ignored every click, with nothing on screen saying why. Alaska was the only one, and it looked broken rather than deliberate.
+
+- Grey states are now hoverable — *"no territory covers it"* — and clicking one offers **give it coverage**
+- Pick a territory (nearest listed first) and the state joins that rep's patch. No revenue, no head: it stops being a hole in the map, nothing else
+- The state's full area is added to that territory's `land`
+- Uncovered states are listed at the top of the States tab instead of being invisible
+- Undo reverses it
 
 ## v0.1.0 — first repo build
 

@@ -22,7 +22,7 @@ Related: [[Sales Mapping]] · [[Balancing method]] · [[Territory adjacency]]
 | `palette` | object | `light[]`, `dark[]`, `validated` (how many are colour-blind-safe) |
 | `homes` | array | leader home-market rules the checks enforce |
 | `colocate` | array | index pairs that must never be split (same metro) |
-| `uncovered` | array | state codes shaded grey — no coverage |
+| `uncovered` | array | state codes shaded grey — no territory covers them; assignable in the app |
 | `total`, `totalHeads`, `k` | number | revenue sum, seats including adds, starting area count |
 
 ## A territory

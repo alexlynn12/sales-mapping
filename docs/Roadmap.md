@@ -18,6 +18,7 @@ Related: [[Sales Mapping]] · [[Changelog]] · [[Decisions]]
 - [x] Light and dark palettes, colour-blind validated to seven areas
 - [x] Dataset separated from app; import from spreadsheet; validator
 - [x] **Territory splitting in-app** — divide a multi-state territory, allocate its revenue, place each half
+- [x] Assign an uncovered state to a territory
 
 ## Next
 

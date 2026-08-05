@@ -1,6 +1,6 @@
 /* Sales Mapping — territory / area / org structure editor.
    Data arrives at runtime via boot(dataset); nothing here is hard-coded to one company. */
-let D,T,ADD,K0,SN,SC,PAL,VALID,TOTREV,TOTH,MX;
+let D,T,ADD,K0,SN,SC,SL,PAL,VALID,TOTREV,TOTH,MX;
 let S, history=[], menu=null, modal=null, flash=-1, tab='terr', view='map', sel=[], splitsMade=false;
 const dark=()=>document.documentElement.getAttribute('data-theme')==='dark'
   ||(!document.documentElement.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);
@@ -28,7 +28,7 @@ const distOfAdd=j=>S.add[j].a!=null?null:S.terr[ADD[j].parent].d;
    (a new territory appears), so those steps additionally snapshot the dataset
    slices a split can touch — otherwise undo would leave S and D disagreeing
    about how many territories exist. */
-const DS_KEYS=['territories','stateTerr','adj','baseline','totalHeads'];
+const DS_KEYS=['territories','stateTerr','adj','baseline','totalHeads','uncovered'];
 function dsSlice(){const o={}; DS_KEYS.forEach(k=>o[k]=D[k]); return JSON.parse(JSON.stringify(o));}
 function dsRestore(o){ DS_KEYS.forEach(k=>{ if(o[k]!==undefined) D[k]=o[k]; });
   T=D.territories; TOTH=D.totalHeads; MX=Math.max(...T.map(t=>t.rev)); window.__ds=D; }
@@ -96,9 +96,12 @@ function drawMap(){
     marker:{line:{color:sts.map(s=>s===hotS?ink:surf),width:sts.map(s=>s===hotS?3:1.2)}},
     customdata:sts.map(s=>[SN[s]||s,(D.stateTerr[s]||[]).length]),
     hovertemplate:'<b>%{customdata[0]}</b><br>%{customdata[1]} territory(ies)<extra>click to move the whole state</extra>'},
-   {type:'choropleth',locationmode:'USA-states',locations:D.uncovered,z:[0],
+   {type:'choropleth',locationmode:'USA-states',locations:D.uncovered,z:D.uncovered.map(()=>0),
     colorscale:[[0,m==='light'?'#e8e8e4':'#2e2e2c'],[1,m==='light'?'#e8e8e4':'#2e2e2c']],
-    showscale:false,hoverinfo:'skip',marker:{line:{color:surf,width:1.2}}},
+    showscale:false,name:'uncovered',
+    marker:{line:{color:D.uncovered.map(s=>s===hotS?ink:surf),width:D.uncovered.map(s=>s===hotS?3:1.2)}},
+    customdata:D.uncovered.map(s=>[SN[s]||s]),
+    hovertemplate:'<b>%{customdata[0]}</b><br>no territory covers it<extra>click to give it coverage</extra>'},
    {type:'scattergeo',mode:'markers',lon:T.map(t=>t.lon),lat:T.map(t=>t.lat),name:'territories',
     marker:{size:T.map(t=>7+30*Math.sqrt(t.rev/MX)),color:T.map((t,i)=>colOf(S.terr[i].a)),
       line:{width:T.map((t,i)=>hotT.has(i)?4.5:1.8),color:T.map((t,i)=>hotT.has(i)?ink:surf)},opacity:.95},
@@ -132,10 +135,17 @@ function relink(){const sc=menu.scope;menu=null;push();sc.ids.forEach(j=>S.add[j
 function menuHTML(){
   if(!menu) return '';
   const sc=menu.scope;
-  const cur = sc.kind==='add'?areaOfAdd(sc.ids[0]):S.terr[sc.ids[0]].a;
-  const curD = sc.kind==='add'?null:S.terr[sc.ids[0]].d;
-  const same = sc.kind==='add'?sc.ids.every(j=>areaOfAdd(j)===cur):sc.ids.every(i=>S.terr[i].a===cur&&S.terr[i].d===curD);
+  /* an uncovered state has no territory behind it, so read nothing off S.terr */
+  const un = sc.kind==='uncov';
+  const cur = un?null:(sc.kind==='add'?areaOfAdd(sc.ids[0]):S.terr[sc.ids[0]].a);
+  const curD = (un||sc.kind==='add')?null:S.terr[sc.ids[0]].d;
+  const same = un?false:(sc.kind==='add'?sc.ids.every(j=>areaOfAdd(j)===cur):sc.ids.every(i=>S.terr[i].a===cur&&S.terr[i].d===curD));
   let h=`<div class="mh"><div class="mt">${menu.label}</div><div class="ms">${menu.sub}</div></div>`;
+  if(sc.kind==='uncov')
+    return `<div class="menu" style="left:${menu.x}px;top:${menu.y}px" onclick="event.stopPropagation()">
+      <button class="mx" onclick="closeMenu()">✕</button>${h}
+      <div class="msep">not part of any territory</div>
+      <div class="mrow back" onclick="askCover('${sc.st}')">✚ give it coverage — attach to a territory</div></div>`;
   h+=`<div class="msep">move to area</div>`;
   h+=S.areas.map(a=>{
     const isCur = same && a.id===cur && (sc.kind==='add'||curD==null);
@@ -253,6 +263,31 @@ function editDistrict(id){const d=distById(id);
     onOK:o=>{d.name=o.name||d.name;d.title=o.title;d.leader=o.leader;
       if(+o.area!==d.areaId){d.areaId=+o.area; S.terr.forEach(t=>{if(t.d===id) t.a=+o.area;});}},
     onDanger:()=>{S.terr.forEach(t=>{if(t.d===id) t.d=null;}); S.districts=S.districts.filter(x=>x.id!==id);}};render();}
+/* ---------- coverage ---------- */
+/* A territory's `land` is its share of each state it covers: a state split
+   between three territories gives a third of its area to each. */
+const landOf=st=>(SL[st]||0)/Math.max(1,(D.stateTerr[st]||[]).length);
+const uncovered=()=>(D.uncovered||[]).slice();
+function askCover(st){
+  menu=null;
+  const c=SC[st], near=T.map((t,i)=>({i,d:c?Math.hypot(t.lat-c[0],(t.lon-c[1])*0.7):0}))
+    .sort((a,b)=>a.d-b.d).map(x=>x.i);
+  modal={title:'Give '+(SN[st]||st)+' coverage',ok:'Assign',structural:true,
+    note:`${esc(SN[st]||st)} has no territory, which is why it is grey and will not respond to a click.
+          Attach it to an existing territory and it becomes part of that rep's patch — no revenue and no head are added,
+          it just stops being a hole in the map. Nearest territories are listed first.`,
+    fields:[{key:'terr',label:'Covered by',type:'select',value:near[0],
+             options:near.map(i=>({v:i,t:`${T[i].name} — ${areaById(S.terr[i].a).name}`}))}],
+    onOK:o=>doCover(st,+o.terr)};
+  render();}
+function doCover(st,i){
+  if((D.stateTerr[st]||[]).length) return;
+  D.stateTerr[st]=[i];
+  if(T[i].states.indexOf(st)<0) T[i]={...T[i],states:T[i].states.concat([st]),land:(T[i].land||0)+(SL[st]||0)};
+  D.uncovered=(D.uncovered||[]).filter(x=>x!==st);
+  splitsMade=true; window.__ds=D;
+  flash=S.terr[i].a; setTimeout(()=>{flash=-1;renderPanel();},900);}
+
 /* ---------- splitting a territory ---------- */
 const canSplit=i=>T[i]&&(T[i].states||[]).length>1;
 const money=s=>{const n=parseFloat(String(s).replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:NaN;};
@@ -289,8 +324,9 @@ function askSplit(i){
 function doSplit(i,spec){
   const t=T[i], n=T.length;
   const aStates=t.states.filter(s=>spec.bStates.indexOf(s)<0);
-  const share=spec.bStates.length/Math.max(1,t.states.length);
-  const bLand=Math.round((t.land||0)*share);
+  const known=t.states.every(s=>SL[s]);
+  const bLand=known?Math.round(spec.bStates.reduce((s,x)=>s+landOf(x),0))
+                   :Math.round((t.land||0)*spec.bStates.length/Math.max(1,t.states.length));
   const c=spec.bStates.map(s=>SC[s]).filter(Boolean);
   const lat=c.length?c.reduce((s,p)=>s+p[0],0)/c.length:t.lat;
   const lon=c.length?c.reduce((s,p)=>s+p[1],0)/c.length:t.lon;
@@ -360,7 +396,11 @@ function renderTables(){
           <td>${canSplit(i)?`<button class="mini" onclick="askSplit(${i})" title="one rep covers ${t.states.length} states — split into two territories">⑂ split</button>`:''}</td></tr>`;}).join('')+`</tbody></table>`;
   } else if(tab==='state'){
     const sts=Object.keys(D.stateTerr).sort((a,b)=>(SN[a]||a).localeCompare(SN[b]||b));
+    const unc=uncovered().sort((a,b)=>(SN[a]||a).localeCompare(SN[b]||b));
     w.innerHTML=`<table><thead><tr><th>State</th><th>Move whole state to</th><th style="text-align:right">Terr</th><th>Territories in it</th></tr></thead><tbody>`
+      +unc.map(st=>`<tr class="mixed"><td><b>${esc(SN[st]||st)}</b></td>
+          <td><button class="mini" onclick="askCover('${st}')">✚ give it coverage</button></td>
+          <td class="num">0</td><td class="muted">no territory covers it</td></tr>`).join('')
       +sts.map(st=>{const ids=D.stateTerr[st],as=[...new Set(ids.map(i=>S.terr[i].a))],mix=as.length>1;
         return `<tr class="${mix?'mixed':''}"><td><b>${esc(SN[st]||st)}</b></td>
           <td><select onchange="setStatePlace('${st}',this.value)">${mix?'<option value="" selected>— split across '+as.length+' areas —</option>':''}
@@ -514,7 +554,7 @@ function at(ev){const h=document.getElementById('mapWrap').getBoundingClientRect
   let y=(ev&&ev.clientY!==undefined?ev.clientY-h.top:60);
   return [Math.max(6,Math.min(x,h.width-318)),Math.max(6,Math.min(y,Math.max(6,h.height-160)))];}
 function boot(ds){
-  D=ds; T=D.territories; ADD=D.adds; K0=D.k; SN=window.STATE_NAMES; SC=window.STATE_CENTROIDS||{};
+  D=ds; T=D.territories; ADD=D.adds; K0=D.k; SN=window.STATE_NAMES; SC=window.STATE_CENTROIDS||{}; SL=window.STATE_LAND||{};
   PAL=D.palette; VALID=PAL.validated; TOTREV=D.total; TOTH=D.totalHeads;
   MX=Math.max(...T.map(t=>t.rev));
   history=[]; splitsMade=false; window.__ds=D;
@@ -532,6 +572,8 @@ function boot(ds){
     else if(p.data.name==='adds'){const j=p.pointIndex;
       openMenu(x,y,{kind:'add',ids:[j]},esc(ADD[j].market)+' <span class="tagp">planned add</span>',
         `${esc(ADD[j].role)} · ${esc(ADD[j].timing)} · now in ${esc(areaById(areaOfAdd(j)).name)}`);}
+    else if(p.data.name==='uncovered'){const st=p.location;
+      openMenu(x,y,{kind:'uncov',ids:[],st},esc(SN[st]||st),'no coverage — not in any territory');}
     else if(p.data.name==='states'){const st=p.location,ids=(D.stateTerr[st]||[]); if(!ids.length) return;
       const rev=ids.reduce((s,i)=>s+T[i].rev,0);
       openMenu(x,y,{kind:'state',ids,st},esc(SN[st]||st),`whole state · ${ids.length} territor${ids.length>1?'ies':'y'} · ${fmt(rev)}`);}});
@@ -544,3 +586,4 @@ function boot(ds){
 let wired=false;
 window.boot=boot;
 window.askSplit=askSplit;
+window.askCover=askCover;

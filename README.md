@@ -14,6 +14,7 @@ Runs entirely in your browser. No server, no account, nothing uploaded.
 - **Group into districts.** Shift-click several territories, group them under a district leader, and watch span of control drop.
 - **Build the org.** Switch to the org-chart view, name everyone, toggle an EVP layer, print it or export it as CSV.
 - **Split a territory that spans several states.** One rep covering three states moves as one unit, which is usually right and occasionally not. Split it, choose which states go where, allocate the revenue, and the two halves become two seats.
+- **Give an uncovered state coverage.** A state no territory owns is drawn grey; click it and attach it to a territory. No revenue and no head are added — it just stops being a hole in the map.
 - **Get told when a cut is broken.** Contiguity, leaders' home markets, same-metro pairs and detached headcount are checked continuously.
 
 ## Your data
