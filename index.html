@@ -48,6 +48,7 @@ to reassign it; shift-click several and turn them into a district. Save your wor
       <button id="tab_dist" aria-pressed="false" onclick="setTab('dist')">Districts</button>
       <button id="tab_state" aria-pressed="false" onclick="setTab('state')">States</button>
       <button id="tab_add" aria-pressed="false" onclick="setTab('add')">Planned adds</button>
+      <button id="tab_zip" aria-pressed="false" onclick="setTab('zip')">Zip codes</button>
     </div>
     <div class="tblwrap" id="tabbody"></div></details>
 </div>
@@ -63,13 +64,14 @@ to reassign it; shift-click several and turn them into a district. Save your wor
 <li><b>Your work is kept between visits.</b> Where every territory sits, your districts, the names you type and any splits are written back to this browser after each change, so a refresh or a closed tab picks up where you left off. The bar above shows when it last saved; <b>Discard</b> throws it away and starts from the dataset as it came. It never leaves your machine, and it is per-browser — use <b>Save…</b> for a file you can move or share.</li>
 <li><b>Splitting.</b> A territory spanning several states is one person, so the whole patch moves together. If you need the states apart, click it and choose <b>⑂ split</b> — pick which states move, how much revenue goes with them, and where the new territory sits. That is one more head, and the dialog tells you so first.</li>
 <li><b>Grey states</b> are not covered by any territory. Click one and choose <b>give it coverage</b> to attach it to a rep's patch — that adds no revenue and no head, it just closes the gap.</li>
+<li><b>Zip codes.</b> A state can be covered by more than one territory (Texas, California, New York…) with nothing saying which rep serves which zip. The <b>Zip codes</b> tab lists exactly those states — search, assign a zip to a territory, or auto-assign the rest to the nearest one and fix the exceptions. Unconfirmed rows are marked <b>auto</b> until you set them; nothing is silently decided for you.</li>
 <li><b>Checks run continuously</b> — contiguity, leaders' home markets, same-metro pairs, and adds separated from their territory.</li>
 <li><b>Colours.</b> The first seven are colour-blind validated against each other; past that, identity relies on the labels, and you'll see a note.</li>
 <li><b>Save…</b> writes a JSON file of the whole structure; <b>Load…</b> brings it back. <b>Export org CSV</b> gives one row per person with who they report to. <b>Print / PDF</b> prints the org chart alone.</li>
 </ul></div></details>
 
 <footer class="foot">Sales Mapping · runs entirely in your browser ·
-<a href="https://github.com/alexlynn12/sales-mapping">source</a></footer>
+<a href="https://github.com/alexlynn12/sales-mapping">source</a> · zip data © <a href="https://www.geonames.org">GeoNames</a>, CC BY 4.0</footer>
 
 <div id="modalLayer"></div>
 </div>

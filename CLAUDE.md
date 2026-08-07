@@ -23,7 +23,8 @@ browser — the app detects this and says so, but don't spend time on it.
 | `assets/app.js` | everything — state, metrics, map, pickers, modals, org chart, actions |
 | `assets/boot.js` | dataset resolution: your file from `localStorage`, else `data/demo-plan.json` |
 | `assets/state-names.js` | static reference: state names, centroids, land areas |
-| `tools/` | `build_dataset.py` (spreadsheet → JSON), `validate_dataset.py`, `make_demo.py` |
+| `assets/zips.json` | static reference: zip → city, state, county, lat/lon (GeoNames, CC BY 4.0); fetched lazily, unrelated to any dataset |
+| `tools/` | `build_dataset.py` (spreadsheet → JSON), `validate_dataset.py`, `make_demo.py`, `reference/build_zips.py` (regenerates `assets/zips.json`) |
 | `docs/` | the reasoning. Read `Decisions.md` before changing behaviour |
 
 ## The one distinction to hold onto: `D` vs `S`
@@ -44,7 +45,9 @@ Get this wrong and undo leaves `S` and `D` disagreeing about how many territorie
    is vestigial). `totalHeads` = territories + adds. Splitting therefore adds a head — surface that in the UI
    before the user commits, because it's a business decision, not a mapping one.
 3. **Index discipline.** `adj`, `stateTerr`, `baseline`, `colocate`, `homes[].core` and `adds[].parent` all
-   index into `territories` by position. Only ever append; never reorder or splice.
+   index into `territories` by position. Only ever append; never reorder or splice. `zipTerr` is keyed by zip
+   string instead, but its values are the same territory indices — a value pointing at a territory that no
+   longer covers that zip's state is treated as unset (see `zipTerrOf`), not an error.
 4. **Adjacency is symmetric.** Add edges in both directions or the contiguity flood-fill silently misreports.
 5. **`land` follows the states.** A territory's share of a state is `STATE_LAND[st] / (territories covering st)`.
 

@@ -28,7 +28,7 @@ const distOfAdd=j=>S.add[j].a!=null?null:S.terr[ADD[j].parent].d;
    (a new territory appears), so those steps additionally snapshot the dataset
    slices a split can touch — otherwise undo would leave S and D disagreeing
    about how many territories exist. */
-const DS_KEYS=['territories','stateTerr','adj','baseline','totalHeads','uncovered'];
+const DS_KEYS=['territories','stateTerr','adj','baseline','totalHeads','uncovered','zipTerr'];
 function dsSlice(){const o={}; DS_KEYS.forEach(k=>o[k]=D[k]); return JSON.parse(JSON.stringify(o));}
 function dsRestore(o){ DS_KEYS.forEach(k=>{ if(o[k]!==undefined) D[k]=o[k]; });
   T=D.territories; TOTH=D.totalHeads; MX=Math.max(...T.map(t=>t.rev)); window.__ds=D; }
@@ -324,6 +324,61 @@ function doCover(st,i){
   splitsMade=true; window.__ds=D;
   flash=S.terr[i].a; setTimeout(()=>{flash=-1;renderPanel();},900);}
 
+/* ---------- zip codes ----------
+   A state can be covered by several territories (D.stateTerr[st].length>1) with
+   nothing saying which rep serves which zip. zips.json is a static reference
+   table (zip,city,state,county,lat,lon), independent of any dataset, fetched
+   lazily on first use. D.zipTerr holds only explicit overrides — everything
+   else falls back to a nearest-territory guess computed live, never stored
+   until the user confirms it. */
+let ZIPS=null, ZIPS_BY_STATE=null, zipsLoading=false;
+let zipTab={q:{},open:{}};
+function loadZips(){
+  if(ZIPS||zipsLoading) return;
+  zipsLoading=true;
+  fetch('assets/zips.json',{cache:'force-cache'}).then(r=>r.json()).then(rows=>{
+    ZIPS=rows; ZIPS_BY_STATE={};
+    rows.forEach(r=>{ (ZIPS_BY_STATE[r[2]]=ZIPS_BY_STATE[r[2]]||[]).push(r); });
+    zipsLoading=false; if(tab==='zip') renderTables();
+  }).catch(e=>{ zipsLoading=false; console.warn('zip reference unavailable:',e.message); if(tab==='zip') renderTables(); });
+}
+const mixedStates=()=>Object.keys(D.stateTerr).filter(st=>(D.stateTerr[st]||[]).length>1)
+  .sort((a,b)=>(SN[a]||a).localeCompare(SN[b]||b));
+const nearestTerrFor=(lat,lon,ids)=>ids.slice().sort((a,b)=>
+  Math.hypot(T[a].lat-lat,(T[a].lon-lon)*0.7)-Math.hypot(T[b].lat-lat,(T[b].lon-lon)*0.7))[0];
+/* zrow = [zip,city,state,county,lat,lon]; ids = the territories covering that state */
+function zipTerrOf(zrow,ids){
+  const z=zrow[0], pinned=D.zipTerr&&D.zipTerr[z];
+  if(pinned!=null&&ids.indexOf(pinned)>=0) return {i:pinned,auto:false};
+  if(ids.length===1) return {i:ids[0],auto:false};
+  return {i:nearestTerrFor(zrow[4],zrow[5],ids),auto:true};
+}
+function afterZipEdit(){ document.getElementById('undoBtn').disabled=!history.length; renderTables(); stampSaved(); autosave(); }
+function setZipTerr(z,ti){ push(true); D.zipTerr=D.zipTerr||{}; D.zipTerr[z]=+ti; splitsMade=true; window.__ds=D; afterZipEdit(); }
+function clearZipOverride(z){ if(!D.zipTerr||D.zipTerr[z]==null) return; push(true); delete D.zipTerr[z]; afterZipEdit(); }
+function autoAssignState(st){
+  const ids=D.stateTerr[st]||[], rows=(ZIPS_BY_STATE&&ZIPS_BY_STATE[st])||[];
+  if(ids.length<2||!rows.length) return;
+  push(true); D.zipTerr=D.zipTerr||{};
+  rows.forEach(r=>{ if(D.zipTerr[r[0]]==null) D.zipTerr[r[0]]=nearestTerrFor(r[4],r[5],ids); });
+  splitsMade=true; window.__ds=D; afterZipEdit();
+}
+function setZipQ(st,v){ zipTab.q[st]=v; renderTables(); }
+function exportZipsCSV(){
+  if(!ZIPS) return;
+  let csv='Zip,City,County,State,Territory,Area,Confirmed\n';
+  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
+  mixedStates().forEach(st=>{
+    const ids=D.stateTerr[st];
+    (ZIPS_BY_STATE[st]||[]).forEach(r=>{
+      const eff=zipTerrOf(r,ids), a=areaById(S.terr[eff.i].a);
+      csv+=[r[0],q(r[1]),q(r[3]),st,q(T[eff.i].name),q(a?a.name:''),eff.auto?'N':'Y'].join(',')+'\n';
+    });
+  });
+  const b=new Blob([csv],{type:'text/csv'}),u=URL.createObjectURL(b);
+  const el=document.createElement('a');el.href=u;el.download='zip-territory-assignments.csv';el.click();URL.revokeObjectURL(u);
+}
+
 /* ---------- splitting a territory ---------- */
 const canSplit=i=>T[i]&&(T[i].states||[]).length>1;
 const money=s=>{const n=parseFloat(String(s).replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:NaN;};
@@ -420,6 +475,11 @@ function renderPanel(){
 }
 function renderTables(){
   const w=document.getElementById('tabbody'); if(!w) return;
+  /* re-rendering swaps out every node in tabbody, including whatever the user is
+     typing into (the zip search box) — restore focus and cursor after so a
+     search doesn't cut the user off after one keystroke */
+  const af=document.activeElement, afId=(af&&w.contains(af))?af.id:null,
+    afSel=afId&&af.setSelectionRange?[af.selectionStart,af.selectionEnd]:null;
   const aOpts=(cur,fn)=>`<select onchange="${fn}">${S.areas.map(a=>`<option value="a${a.id}" ${cur==='a'+a.id?'selected':''}>${esc(a.name)}</option>`).join('')}
     ${S.districts.map(d=>`<option value="d${d.id}" ${cur==='d'+d.id?'selected':''}>&nbsp;&nbsp;↳ ${esc(d.name)}</option>`).join('')}</select>`;
   if(tab==='terr'){
@@ -452,7 +512,7 @@ function renderTables(){
           <td><input class="nm" value="${esc(S.add[j].name)}" placeholder="—" oninput="S.add[${j}].name=this.value"></td>
           <td class="muted">${esc(x.role)}</td><td class="muted">${esc(x.timing)}</td>
           <td class="muted">${esc(T[x.parent].name)}</td></tr>`;}).join('')+`</tbody></table>`;
-  } else {
+  } else if(tab==='dist'){
     const dm=distStats();
     w.innerHTML=`<div class="dtop"><button class="primary" onclick="newDistrictFrom([])">✚ New district</button>
       <span class="muted">Districts sit between the area leader and the reps. Territories inside one report to its leader.</span></div>`
@@ -464,8 +524,43 @@ function renderTables(){
           <td class="muted">${ts.map(i=>esc(T[i].name)).join(', ')||'—'}</td>
           <td><button class="mini" onclick="editDistrict(${d.id})">edit</button></td></tr>`;}).join('')+`</tbody></table>`
       :`<p class="muted" style="padding:10px 2px">No districts yet. Select territories on the map (shift-click for several) and choose “new district”, or click ✚ New district above.</p>`);
+  } else {
+    if(!ZIPS){ loadZips();
+      w.innerHTML=`<p class="muted" style="padding:14px 2px">Loading zip reference data…</p>`;
+    } else {
+      const states=mixedStates();
+      if(!states.length){
+        w.innerHTML=`<p class="muted" style="padding:14px 2px">No state is currently covered by more than one territory, so there's nothing to disambiguate at the zip level — every zip already belongs to exactly one territory by state alone.</p>`;
+      } else {
+        w.innerHTML=`<div class="ziptop"><span class="muted">States covered by more than one territory — everything else is unambiguous by state and doesn't need this. Unconfirmed rows show a nearest-territory guess, tagged <span class="tagp">auto</span>, until you set them.</span>
+          <button class="mini" onclick="exportZipsCSV()">Download zip assignments CSV</button></div>`
+          +states.map(st=>{
+            const ids=D.stateTerr[st], rows=ZIPS_BY_STATE[st]||[];
+            const q=(zipTab.q[st]||'').trim().toLowerCase();
+            const filtered=q?rows.filter(r=>r[0].startsWith(q)||r[1].toLowerCase().includes(q)||r[3].toLowerCase().includes(q)):rows;
+            const confirmed=rows.filter(r=>D.zipTerr&&D.zipTerr[r[0]]!=null&&ids.indexOf(D.zipTerr[r[0]])>=0).length;
+            const shown=filtered.slice(0,400);
+            return `<details class="zipstate"${zipTab.open[st]?' open':''} ontoggle="zipTab.open['${st}']=this.open">
+              <summary>${esc(SN[st]||st)} <span class="muted">— ${ids.length} territories · ${confirmed}/${rows.length} confirmed</span></summary>
+              ${rows.length?`<div class="zipctl">
+                <input class="zipsearch" id="zipq_${st}" placeholder="search zip or city…" value="${esc(zipTab.q[st]||'')}" oninput="setZipQ('${st}',this.value)">
+                <button class="mini" onclick="autoAssignState('${st}')" ${confirmed>=rows.length?'disabled':''}>auto-assign remaining (${rows.length-confirmed}) to nearest</button>
+              </div>
+              <table><thead><tr><th>Zip</th><th>City</th><th>County</th><th>Territory</th><th></th></tr></thead><tbody>`
+                +(shown.length?shown.map(r=>{const eff=zipTerrOf(r,ids);
+                  return `<tr class="${eff.auto?'mixed':''}"><td>${r[0]}</td><td>${esc(r[1])}</td><td class="muted">${esc(r[3])}</td>
+                    <td><select onchange="setZipTerr('${r[0]}',this.value)">${ids.map(i=>`<option value="${i}" ${i===eff.i?'selected':''}>${esc(T[i].name)}</option>`).join('')}</select></td>
+                    <td>${eff.auto?'<span class="tagp" title="nearest-territory guess — not yet confirmed">auto</span>':`<button class="mini" onclick="clearZipOverride('${r[0]}')" title="revert to auto">reset</button>`}</td></tr>`;}).join('')
+                  :`<tr><td colspan="5" class="muted">no zip matches “${esc(zipTab.q[st])}”</td></tr>`)
+                +`</tbody></table>${filtered.length>shown.length?`<p class="muted" style="padding:6px 2px 0">showing ${shown.length} of ${filtered.length} — search to narrow further</p>`:''}`
+                :`<p class="muted" style="padding:8px 2px">The zip reference table has no rows for this state code.</p>`}
+            </details>`;
+          }).join('');
+      }
+    }
   }
-  ['terr','state','add','dist'].forEach(k=>{const b=document.getElementById('tab_'+k); if(b) b.setAttribute('aria-pressed',tab===k);});
+  ['terr','state','add','dist','zip'].forEach(k=>{const b=document.getElementById('tab_'+k); if(b) b.setAttribute('aria-pressed',tab===k);});
+  if(afId){ const el=document.getElementById(afId); if(el){ el.focus(); if(afSel&&el.setSelectionRange){ try{el.setSelectionRange(afSel[0],afSel[1]);}catch(e){} } } }
 }
 /* ---------- org chart ---------- */
 function personBox(cls,color,title,name,sub,onclick){
@@ -595,6 +690,7 @@ function boot(ds){
   D=ds; T=D.territories; ADD=D.adds; K0=D.k; SN=window.STATE_NAMES; SC=window.STATE_CENTROIDS||{}; SL=window.STATE_LAND||{};
   PAL=D.palette; VALID=PAL.validated; TOTREV=D.total; TOTH=D.totalHeads;
   MX=Math.max(...T.map(t=>t.rev));
+  D.zipTerr=D.zipTerr||{}; zipTab={q:{},open:{}};
   history=[]; splitsMade=false; window.__ds=D;
   document.getElementById('dsname').textContent=(D.meta&&D.meta.name)||'dataset';
   document.getElementById('app').classList.remove('hide');

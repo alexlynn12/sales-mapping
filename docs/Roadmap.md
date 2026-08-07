@@ -20,6 +20,7 @@ Related: [[Sales Mapping]] · [[Changelog]] · [[Decisions]]
 - [x] **Territory splitting in-app** — divide a multi-state territory, allocate its revenue, place each half
 - [x] Assign an uncovered state to a territory
 - [x] Work restored automatically on the next visit
+- [x] **Zip-level assignment** — for states split across territories, assign individual zips rather than leaving it implicit
 
 ## Next
 

@@ -6,6 +6,23 @@ tags: [sales-mapping, log]
 
 Related: [[Sales Mapping]] · [[Roadmap]]
 
+## v0.4.0 — zip codes
+
+A state covered by more than one territory (Texas, California, New York, Pennsylvania, Ohio, Florida…) had
+no data saying which rep served which zip — the app only knew state-level footprints.
+
+- **Zip codes** tab lists exactly the states where this is ambiguous — a single-territory state needs nothing
+- Every zip in a mixed state shows its assigned territory, or a nearest-territory guess tagged **auto** if no
+  one has confirmed it yet. Guesses are never written to the dataset until you act on them
+- Assign a zip individually, or **auto-assign remaining** to seed the whole state from nearest-territory and
+  fix the exceptions by hand
+- Search by zip or city within a state to narrow a long list
+- **Download zip assignments CSV** for the full effective mapping, confirmed or not, useful outside the app
+- Reference data (zip → city, state, county, lat/lon) is `assets/zips.json`, a static table independent of any
+  dataset, from GeoNames (CC BY 4.0) — fetched once, only when the tab is first opened
+- Assignments live in the dataset (`D.zipTerr`), the same way `stateTerr` does, so undo, autosave and
+  **Save…** / **Load…** all carry them for free
+
 ## v0.3.0 — your work survives a refresh
 
 The dataset already persisted; the work on top of it did not. A refresh, a closed tab or a crash meant re-doing every move unless you had remembered to **Save…** first.

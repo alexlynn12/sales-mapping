@@ -9,3 +9,10 @@ The format is documented in [../docs/Data model.md](../docs/Data%20model.md). Va
 ```bash
 python3 tools/validate_dataset.py path/to/dataset.json
 ```
+
+## `assets/zips.json`
+
+Not in this folder, but the same rule applies: no revenue in it, so it's safe to publish. It's a static
+reference table — zip → city, state, county, lat/lon — used by the Zip codes tab, unrelated to any one
+dataset. Source: [GeoNames](https://www.geonames.org) postal code export, CC BY 4.0. Regenerate with
+`tools/reference/build_zips.py`.

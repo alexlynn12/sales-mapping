@@ -99,6 +99,11 @@ def main(path):
             if not (0 <= i < n):
                 errs.append(f"stateTerr[{st}] references territory {i}")
 
+    zt = d.get("zipTerr", {})
+    for zip_, i in zt.items():
+        if not (0 <= i < n):
+            errs.append(f"zipTerr[{zip_}] references territory {i}")
+
     print(f"{path}: {n} territories, {len(A)} areas, {len(d['adds'])} planned adds, "
           f"{d['totalHeads']} heads, ${tot:,}")
     return report(errs, warns)
