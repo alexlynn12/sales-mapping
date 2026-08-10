@@ -2,6 +2,7 @@
    A free-form tree of positions: title, person, an optional unit/territory label, and an
    optional revenue figure that rolls up the tree. Everything is local to this browser. */
 let NODES, nextId, history=[], modal=null, root=0;
+let zoomMode='fit', manualZoom=1, lastScale=1, resizeT=null;
 const dark=()=>document.documentElement.getAttribute('data-theme')==='dark'
   ||(!document.documentElement.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);
 const fmt=n=>'$'+Math.round(n).toLocaleString('en-US');
@@ -30,13 +31,16 @@ const KEY='salesmapping.orgchart.v1';
 let saveT=null, savedAt=null, saveOff=false;
 function autosave(){ if(saveOff) return; if(saveT) clearTimeout(saveT);
   saveT=setTimeout(()=>{ try{
-      localStorage.setItem(KEY,JSON.stringify({at:Date.now(),NODES,nextId}));
+      localStorage.setItem(KEY,JSON.stringify({at:Date.now(),NODES,nextId,zoomMode,manualZoom}));
       savedAt=Date.now(); stampSaved();
     }catch(e){ saveOff=true; stampSaved('could not save — this browser is out of room or in private mode'); } },500); }
 function restore(){
   try{ const raw=localStorage.getItem(KEY); if(!raw) return false;
     const o=JSON.parse(raw); if(!o||!Array.isArray(o.NODES)||!o.NODES.length) return false;
-    NODES=o.NODES; nextId=o.nextId||(Math.max(...NODES.map(n=>n.id))+1); savedAt=o.at||null; return true;
+    NODES=o.NODES; nextId=o.nextId||(Math.max(...NODES.map(n=>n.id))+1); savedAt=o.at||null;
+    if(o.zoomMode==='fit'||o.zoomMode==='manual') zoomMode=o.zoomMode;
+    if(isFinite(o.manualZoom)) manualZoom=o.manualZoom;
+    return true;
   }catch(e){ return false; } }
 const ago=t=>{const s=Math.round((Date.now()-t)/1000);
   if(s<45) return 'just now'; if(s<5400) return Math.round(s/60)+' min ago';
@@ -137,6 +141,44 @@ function nodeHTML(id){
       ${sibs.length>1?`<div class="reord"><span onclick="event.stopPropagation();reorder(${id},-1)" title="move earlier">◂</span><span onclick="event.stopPropagation();reorder(${id},1)" title="move later">▸</span></div>`:''}
     </div>${kids.length?`<ul>${kids.map(k=>nodeHTML(k.id)).join('')}</ul>`:''}</li>`;
 }
+/* Large charts run wider than the screen — many siblings side by side — so left/right
+   edges got clipped unless you scrolled. Instead the whole tree is scaled down to fit
+   the available width by default ("Fit"); +/- switches to a manual zoom that sticks
+   until you hit Fit again. Scaling is visual only (transform), so the tree's layout box
+   stays full-size underneath — marginBottom/marginLeft below pull the reserved space
+   and centering back in line with what's actually visible. */
+function applyZoom(){
+  const wrap=document.getElementById('org'), tree=wrap&&wrap.querySelector('.tree');
+  if(!tree) return;
+  /* div.tree is a plain block, so width:auto fills #org and flexbox quietly shrinks every
+     box to fit before we ever measure — offsetWidth would just report #org's width back.
+     max-content forces the tree to lay out at its true, unclamped size so natW/natH (and
+     the scale computed from them) reflect what the chart actually needs. */
+  tree.style.width='max-content';
+  tree.style.transform='none'; tree.style.marginLeft='0'; tree.style.marginBottom='0';
+  const cs=getComputedStyle(wrap);
+  const availW=wrap.clientWidth-(parseFloat(cs.paddingLeft)||0)-(parseFloat(cs.paddingRight)||0);
+  const natW=tree.offsetWidth, natH=tree.offsetHeight;
+  const fitScale=natW?Math.min(1,availW/natW):1;
+  let scale = zoomMode==='fit' ? fitScale : manualZoom;
+  scale = Math.max(0.15,Math.min(2,scale));
+  lastScale=scale;
+  tree.style.transformOrigin='top left';
+  tree.style.transform=`scale(${scale})`;
+  tree.style.marginLeft=Math.max(0,(availW-natW*scale)/2)+'px';
+  tree.style.marginBottom=(natH*scale-natH)+'px';
+  /* overflow is computed from the pre-transform box, so content that's already shrunk to
+     fit visually still reports a scrollable area at its true (unscaled) size — hide that
+     phantom scrollbar. But a manual zoom can still ask for more than actually fits (scale
+     above what "Fit" would use), and that case needs the scrollbar for real, or the excess
+     is just silently cropped instead of reachable by scrolling. */
+  wrap.style.overflow = scale>fitScale+0.001 ? 'auto' : 'hidden';
+  const lab=document.getElementById('zoomlabel'); if(lab) lab.textContent=Math.round(scale*100)+'%';
+  const fb=document.getElementById('zoomFitBtn'); if(fb) fb.setAttribute('aria-pressed',zoomMode==='fit');
+}
+function zoomIn(){ zoomMode='manual'; manualZoom=Math.min(2,lastScale+0.1); applyZoom(); autosave(); }
+function zoomOut(){ zoomMode='manual'; manualZoom=Math.max(0.15,lastScale-0.1); applyZoom(); autosave(); }
+function zoomFit(){ zoomMode='fit'; applyZoom(); autosave(); }
 function render(){
   document.getElementById('org').innerHTML=`<div class="tree"><ul>${nodeHTML(root)}</ul></div>`;
   const total=rollup(root);
@@ -145,6 +187,7 @@ function render(){
      widest span ${Math.max(1,...NODES.map(n=>childrenOf(n.id).length))} direct reports`;
   document.getElementById('undoBtn').disabled=!history.length;
   document.getElementById('modalLayer').innerHTML=modalHTML();
+  applyZoom();
   stampSaved(); autosave();
 }
 
@@ -188,4 +231,5 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&modal) closeModal();
     if((e.key==='z'||e.key==='Z')&&(e.metaKey||e.ctrlKey)){ e.preventDefault(); undo(); } });
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{ if(!document.documentElement.getAttribute('data-theme')) render(); });
+  window.addEventListener('resize',()=>{ if(resizeT) clearTimeout(resizeT); resizeT=setTimeout(applyZoom,120); });
 });

@@ -13,7 +13,12 @@
 .pbox:hover .reord{opacity:1}
 .reord span{cursor:pointer;padding:1px 3px}
 .reord span:hover{color:var(--tp)}
-@media print{.databar{display:none!important}}
+.zoomctl{display:inline-flex;align-items:center;gap:2px;background:var(--s3);border:1px solid var(--line);border-radius:9px;padding:3px}
+.zoomctl button{border:0;background:transparent;padding:5px 10px;font-size:14px;border-radius:6px;color:var(--ts);line-height:1}
+.zoomctl button:hover:not(:disabled){background:var(--s1);color:var(--tp)}
+.zoomctl button[aria-pressed="true"]{background:var(--s1);color:var(--tp);font-weight:600}
+#zoomlabel{font-size:11.5px;color:var(--ts);min-width:36px;text-align:center;display:inline-block}
+@media print{.databar,.zoomctl{display:none!important}}
 </style>
 </head><body><div class="wrap">
 
@@ -37,7 +42,14 @@ report under it. Everything is saved in this browser as you go; use <b>Save…</
   <button id="undoBtn" onclick="undo()">Undo</button>
   <button onclick="exportCSV()">Export CSV</button>
   <button onclick="window.print()">Print / PDF</button>
-  <span class="spacer"></span><button id="thm" onclick="toggleTheme()">Dark mode</button>
+  <span class="spacer"></span>
+  <div class="zoomctl">
+    <button onclick="zoomOut()" title="zoom out">−</button>
+    <span id="zoomlabel">100%</span>
+    <button onclick="zoomIn()" title="zoom in">+</button>
+    <button id="zoomFitBtn" aria-pressed="true" onclick="zoomFit()" title="shrink to fit every position on screen">Fit</button>
+  </div>
+  <button id="thm" onclick="toggleTheme()">Dark mode</button>
 </div>
 
 <div id="orgmeta"></div>
@@ -49,6 +61,7 @@ report under it. Everything is saved in this browser as you go; use <b>Save…</
 <li><b>Edit a position.</b> Click the box itself — set the title, the person's name (blank shows as <i>vacant</i>), a territory or team label, a colour, and who it reports to.</li>
 <li><b>Revenue.</b> Give any position its own revenue figure; each box also shows the rolled-up total for everyone under it, so a leader's box reflects their whole org.</li>
 <li><b>Reorder.</b> Hover a box with siblings and use the ◂ ▸ arrows to change the order they're drawn in.</li>
+<li><b>Zoom.</b> A wide chart shrinks automatically so every box stays on screen at once — <b>Fit</b> in the toolbar. Use <b>−</b> / <b>+</b> to set your own zoom instead; click <b>Fit</b> again to go back to automatic.</li>
 <li><b>Delete.</b> From the edit dialog: move its reports up to whoever it reported to (or anywhere else), or delete the whole branch beneath it in one step.</li>
 <li><b>Your work is kept between visits</b> in this browser only — nothing is uploaded. <b>Save…</b> writes a JSON file you can move, share or reload later with <b>Load…</b>. <b>Export CSV</b> gives one row per position with rollups. <b>Print / PDF</b> prints the chart alone.</li>
 </ul></div></details>
