@@ -1,0 +1,62 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Org Chart Builder</title>
+<meta name="description" content="Build any reporting structure — positions, names, territories and revenue — independent of the sales-mapping tool. Runs entirely in your browser.">
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231F3864'/><circle cx='11' cy='12' r='4' fill='%2312c6a5'/><circle cx='21' cy='20' r='5' fill='%23e19b11'/></svg>">
+<style>
+.paddbtn{position:absolute;top:-8px;right:-8px;width:19px;height:19px;border-radius:50%;background:var(--tp);color:var(--s1);
+  font-size:13px;line-height:17px;text-align:center;cursor:pointer;border:2px solid var(--s1);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.paddbtn:hover{opacity:.82}
+.reord{position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);display:flex;gap:2px;background:var(--s1);
+  border:1px solid var(--line);border-radius:7px;padding:0 3px;font-size:11px;color:var(--tm);opacity:0}
+.pbox:hover .reord{opacity:1}
+.reord span{cursor:pointer;padding:1px 3px}
+.reord span:hover{color:var(--tp)}
+@media print{.databar{display:none!important}}
+</style>
+</head><body><div class="wrap">
+
+<h1>Org Chart Builder</h1>
+<p class="sub">Build any reporting structure from scratch — positions, names, territories or team labels, and revenue — with
+no fixed levels and no tie to the sales-mapping tool's territories or geography. Click a box to edit it, the ✚ to add a
+report under it. Everything is saved in this browser as you go; use <b>Save…</b> for a file you can keep or share.</p>
+
+<div class="databar">
+  <span class="dstag">Org chart</span>
+  <b>your structure</b>
+  <span id="saved"></span>
+  <span class="spacer"></span>
+  <label class="file">Load…<input type="file" accept="application/json" onchange="loadOrg(event)"></label>
+  <button class="mini" onclick="saveOrg()">Save…</button>
+  <button class="mini" onclick="newChart()">New chart</button>
+</div>
+
+<div class="bar">
+  <button class="primary" onclick="addNode(0)">✚ Add position</button>
+  <button id="undoBtn" onclick="undo()">Undo</button>
+  <button onclick="exportCSV()">Export CSV</button>
+  <button onclick="window.print()">Print / PDF</button>
+  <span class="spacer"></span><button id="thm" onclick="toggleTheme()">Dark mode</button>
+</div>
+
+<div id="orgmeta"></div>
+<div id="org"></div>
+
+<details><summary>How it works</summary><div class="body"><ul>
+<li><b>Everything is yours to define.</b> There's one top position to start (rename it to whatever fits — CEO, Owner, Chief Revenue Officer). Add as many positions and as many levels as you want underneath it.</li>
+<li><b>Add a report.</b> Click the small ✚ on any box to add a new position reporting to it.</li>
+<li><b>Edit a position.</b> Click the box itself — set the title, the person's name (blank shows as <i>vacant</i>), a territory or team label, a colour, and who it reports to.</li>
+<li><b>Revenue.</b> Give any position its own revenue figure; each box also shows the rolled-up total for everyone under it, so a leader's box reflects their whole org.</li>
+<li><b>Reorder.</b> Hover a box with siblings and use the ◂ ▸ arrows to change the order they're drawn in.</li>
+<li><b>Delete.</b> From the edit dialog: move its reports up to whoever it reported to (or anywhere else), or delete the whole branch beneath it in one step.</li>
+<li><b>Your work is kept between visits</b> in this browser only — nothing is uploaded. <b>Save…</b> writes a JSON file you can move, share or reload later with <b>Load…</b>. <b>Export CSV</b> gives one row per position with rollups. <b>Print / PDF</b> prints the chart alone.</li>
+</ul></div></details>
+
+<footer class="foot">Org Chart Builder · runs entirely in your browser · standalone from <a href="index.html">Sales Mapping</a> ·
+<a href="https://github.com/alexlynn12/sales-mapping">source</a></footer>
+
+<div id="modalLayer"></div>
+</div>
+<script src="assets/orgchart.js"></script>
+</body></html>
